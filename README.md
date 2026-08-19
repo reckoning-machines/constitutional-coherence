@@ -272,23 +272,23 @@ Three files, in order.
 
 ## Example
 
-The repository is the primary worked example. The essay supplies the framing;
-the tests and change records show how it behaves in practice.
+The repository is the primary worked example. The essay provides the framing;
+the tests and change records show how the framework behaves in practice.
 
-A survey of nine unrelated repositories found that discovery identified
-20–40% of the authority-bearing shapes found by a broader search, compared with
-83% in this repository. One surveyed repository listed eighteen schema files,
-but the parser produced zero tables. Validation would have succeeded without
-establishing coverage of any of those files.
+In a survey of nine unrelated repositories, discovery found 20–40% of the
+authority-bearing structures found by a broader search, compared with 83% in
+this repository. In one repository, the topology listed eighteen schema files,
+but the parser recognized zero tables. Validation would still have passed,
+making “no durable state” indistinguishable from “could not parse the schema.”
 
-[`tests/constitutional/blindspots/`](tests/constitutional/blindspots/) records
-cases where validation currently reports nothing. Each case asserts that
-silence, so improved coverage causes the test to fail and prompts the case to
-move to `adversarial/`.
+[`tests/constitutional/blindspots/`](tests/constitutional/blindspots/) contains
+cases that validation currently accepts. Each test passes only while the
+validator remains silent. When coverage improves, the test fails and the case
+moves to `adversarial/`.
 
-[`CHANGE-043`](docs/work/changes/CHANGE-043/) records that sequence for the
-zero-table defect. The silent result was first preserved as a passing blindspot
+[`CHANGE-043`](docs/work/changes/CHANGE-043/) documents that sequence for the
+zero-table defect. First, the silent result was preserved as a passing blindspot
 test. Discovery was then changed to refuse a listed `.sql` file when it could
-not establish table coverage, and the case moved to `adversarial/`. A second
-blindspot records the remaining bypass: removing the file from `schema_files`
-makes its state invisible to discovery again.
+not establish table coverage, and the case moved to `adversarial/`. The fix
+left a narrower blind spot: removing a file from `schema_files` makes its state
+invisible to discovery again.
