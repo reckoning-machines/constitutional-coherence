@@ -8,6 +8,7 @@ from typing import Any, Mapping
 from constitutional.discover import (
     TOPOLOGY_PATH,
     ObservedRepository,
+    SchemaDiscoveryError,
     allowed_writers,
     declared_carriers,
     discover_repository,
@@ -411,7 +412,10 @@ def validate_repository(
 
     root = root.resolve()
     topology = load_yaml(root / TOPOLOGY_PATH)
-    observed = discover_repository(root, topology)
+    try:
+        observed = discover_repository(root, topology)
+    except SchemaDiscoveryError as error:
+        return [f"schema discovery refused: {error}"]
     write_observed(root, observed)
     rules = load_yaml(root / "constitutional/dependency_rules.yaml")
     errors = [

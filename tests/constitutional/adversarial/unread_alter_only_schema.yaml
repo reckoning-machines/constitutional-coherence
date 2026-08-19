@@ -1,0 +1,30 @@
+name: listed ALTER TABLE-only schema is refused as unread
+pathology: >-
+  `recovery_schema.sql` adds `branches.recovered_head_version_id`, a second
+  durable answer to which Version is current for a Branch. Because the topology
+  lists the file, discovery must either establish table coverage or refuse it.
+caught_by: >-
+  `validate_repository` refuses schema discovery, names
+  `src/coherence_demo/recovery_schema.sql`, and directs the operator either to
+  make the file readable by the parser or remove it from `schema_files`.
+mutations:
+  - operation: replace
+    path: docs/constitution/authority-topology.yaml
+    find: |
+      discovery:
+        schema_files:
+          - src/coherence_demo/schema.sql
+    content: |
+      discovery:
+        schema_files:
+          - src/coherence_demo/schema.sql
+          - src/coherence_demo/recovery_schema.sql
+  - operation: write
+    path: src/coherence_demo/recovery_schema.sql
+    content: |
+      ALTER TABLE branches
+      ADD COLUMN recovered_head_version_id TEXT REFERENCES versions(version_id);
+expected_error: >-
+  schema discovery refused: src/coherence_demo/recovery_schema.sql: listed in
+  topology but no table coverage was established; either the parser cannot read
+  this file or it should not be listed in discovery.schema_files

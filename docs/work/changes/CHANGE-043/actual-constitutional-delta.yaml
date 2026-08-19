@@ -1,0 +1,24 @@
+change_id: CHANGE-043
+measured_from: repository-observation
+measured_between:
+  base: ebae71b016aaba34c91e4b2f6e5451c40083b647
+  head: working-tree
+touched_facts: []
+ontology:
+  status: NO_CHANGE
+semantics:
+  status: NO_CHANGE
+authority:
+  status: NO_CHANGE
+  canonical_authority_changed: false
+  commit_boundary_changed: false
+  writers_added: []
+  decision_rights_added: []
+  historical_sources_changed: false
+  client_responsibility_changed: false
+  representations_added: []
+  representations_removed: []
+duplicate_independent_writers: false
+legacy_successor_writes: false
+browser_owned_truth: false
+mutable_present_historical_dependency: false

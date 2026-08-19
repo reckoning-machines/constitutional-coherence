@@ -1,0 +1,42 @@
+name: removing a schema file from topology restores silent unread state
+pathology: >-
+  `recovery_schema.sql` contains `recovery_state.recovered_head_version_id`, a
+  second durable answer to which Version is current for a Branch. Removing the
+  file from `discovery.schema_files` makes that carrier disappear from
+  discovery without removing it from the repository.
+why_it_is_missed: >-
+  The zero-table refusal applies only while a file is listed. Once the topology
+  entry is removed, discovery never opens the file, so validation cannot
+  distinguish an intentional scope change from lost schema coverage and
+  reports nothing.
+caught_by: nothing in this repository
+mutations:
+  - operation: write
+    path: src/coherence_demo/recovery_schema.sql
+    content: |
+      CREATE TABLE recovery_state (
+          recovery_id TEXT PRIMARY KEY,
+          recovered_head_version_id TEXT NOT NULL
+      );
+  - operation: replace
+    path: docs/constitution/authority-topology.yaml
+    find: |
+      discovery:
+        schema_files:
+          - src/coherence_demo/schema.sql
+    content: |
+      discovery:
+        schema_files:
+          - src/coherence_demo/schema.sql
+          - src/coherence_demo/recovery_schema.sql
+  - operation: replace
+    path: docs/constitution/authority-topology.yaml
+    find: |
+      discovery:
+        schema_files:
+          - src/coherence_demo/schema.sql
+          - src/coherence_demo/recovery_schema.sql
+    content: |
+      discovery:
+        schema_files:
+          - src/coherence_demo/schema.sql

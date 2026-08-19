@@ -15,6 +15,10 @@ import yaml
 TOPOLOGY_PATH = Path("docs/constitution/authority-topology.yaml")
 
 
+class SchemaDiscoveryError(ValueError):
+    """A configured schema file could not establish any table coverage."""
+
+
 @dataclass(frozen=True, slots=True)
 class ObservedCarrier:
     locator: str
@@ -56,14 +60,21 @@ def _line_number(text: str, offset: int) -> int:
     return text.count("\n", 0, offset) + 1
 
 
-def _schema_columns(path: Path) -> Iterable[ObservedCarrier]:
+def _schema_columns(path: Path, *, source: str) -> Iterable[ObservedCarrier]:
     text = path.read_text(encoding="utf-8")
     table_pattern = re.compile(
         r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?P<table>[A-Za-z_]\w*)\s*"
         r"\((?P<body>.*?)\)\s*;",
         re.IGNORECASE | re.DOTALL,
     )
-    for match in table_pattern.finditer(text):
+    tables = tuple(table_pattern.finditer(text))
+    if not tables:
+        raise SchemaDiscoveryError(
+            f"{source}: listed in topology but no table coverage was established; "
+            "either the parser cannot read this file or it should not be listed in "
+            "discovery.schema_files"
+        )
+    for match in tables:
         table = match.group("table")
         body = match.group("body")
         body_start = match.start("body")
@@ -200,7 +211,8 @@ def discover_repository(root: Path, topology: Mapping[str, Any]) -> ObservedRepo
     patterns = tuple(str(item) for item in discovery.get("durable_column_patterns", ()))
     all_schema_columns: list[ObservedCarrier] = []
     for relative in discovery.get("schema_files", ()):
-        all_schema_columns.extend(_schema_columns(root / str(relative)))
+        source = Path(str(relative)).as_posix()
+        all_schema_columns.extend(_schema_columns(root / source, source=source))
     candidates = [
         item
         for item in all_schema_columns

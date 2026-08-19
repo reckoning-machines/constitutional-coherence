@@ -20,7 +20,9 @@ def test_adversarial_change_fails_closed(
     """A locally plausible patch that introduces a second authority is refused."""
 
     case = yaml.safe_load(case_path.read_text(encoding="utf-8"))
-    apply_mutation(plain_repository, case["mutation"])
+    mutations = case.get("mutations") or (case["mutation"],)
+    for mutation in mutations:
+        apply_mutation(plain_repository, mutation)
 
     errors = validate_repository(plain_repository)
 

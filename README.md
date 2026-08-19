@@ -222,7 +222,12 @@ disclosure here.
 | An unauthorized `UPDATE branches SET head_version_id` assembled with an f-string | writer detection reads SQL held as string constants, which an f-string is not | `dynamic_sql_writer` |
 | Browser code choosing the current version, in a function called `effective_head` | the rule is a fixed list of verbs | `renamed_client_decision` |
 | The same duplicate carrier, in a `.sql` file the map does not list | discovery reads only the files it was told about | `unlisted_schema_file` |
+| Listed `.sql` files that parse to zero tables | Closed: listed `.sql` files that parse to zero tables now fail closed. | `adversarial/unread_alter_only_schema` |
 | The `results` immutability guard deleted, its wording left in a comment | the check asks whether a phrase appears in the schema text | `commented_immutability_trigger` |
+
+Remaining: durable state declared outside listed `.sql` files — ORM
+declarations, and files absent from `schema_files` — is still invisible to
+discovery.
 
 The last one runs against the position this repository is taking. The
 constitutional check passes it. The ordinary behavioral test in
@@ -264,3 +269,12 @@ Three files, in order.
    the checker catches and what it misses, side by side.
 3. [`constitutional/measure.py`](constitutional/measure.py). What makes the loop
    closed rather than merely described.
+
+## Example
+
+A worked example is docs/work/changes/CHANGE-043/.
+A survey of nine unrelated repositories found that discovery could not distinguish "no durable state"
+from "could not read the schema" - one repository with eighteen schema files yielded zero tables
+and would have validated clean having read none of them.
+The defect was disclosed as a passing blindspot case, then closed, and the case moved to adversarial/.
+The before-state is recorded: validation returned nothing.
