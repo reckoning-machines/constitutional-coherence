@@ -1,104 +1,148 @@
 # Constitutional Coherence: a working reference
 
-This repository is a small, runnable example of an idea from the essay
-[**An Agentic Coding Proposal: Constitutional Coherence**](https://reckoningmachines.substack.com/p/an-agentic-coding-proposal-constitutional).
+A small, runnable implementation of the framework set out in
+[An Agentic Coding Proposal: Constitutional Coherence](https://reckoningmachines.substack.com/p/an-agentic-coding-proposal-constitutional).
 
-You can read the whole thing without knowing the vocabulary. This page explains
-it in plain language first, then shows you what to run.
+The essay argues that once code is cheap to produce, the binding constraint is
+no longer writing software but preserving the intent of the system you already
+have. This repository is the argument in executable form, including the places
+where it does not hold.
 
-## The problem, in one paragraph
+## The exposure
 
-Tests check what your software *does*. They do not check who is allowed to
-*decide* things. So an agent can add a perfectly reasonable-looking field, ship
-it green, and quietly create a second place in the system that answers the same
-question, "which version is this branch on?", with a different answer. Nothing
-fails. Nothing warns you. Six months later two parts of the system disagree and
-nobody can say which one is right, because both of them are, locally.
+Every firm that has run two systems against the same position knows the failure.
+Both books say they are the record. Neither is wrong locally. The discrepancy
+surfaces at the worst moment, and the reconciliation costs more than either
+system did.
 
-The essay's name for this is **duplicate authority**, and its claim is that this
-is the failure mode that matters once code is cheap to produce.
+Software acquires the same exposure quietly. A test suite confirms that the
+software does what it is supposed to do. It says nothing about who is entitled
+to decide. An agent adds a reasonable field, the suite passes, and the system
+now holds two answers to a single question: which version is this branch on. Six
+months on, two components disagree, and no one can adjudicate, because both
+positions are defensible.
 
-## The idea, in plain language
+The essay calls this duplicate authority. It is the exposure this repository is
+built to test for.
 
-Pick the facts in your system that actually matter, the ones where being wrong
-changes behavior. For this demo there are five, things like "what version is
-this branch currently on" and "what version did this run actually use".
+## The control
 
-For each one, write down:
+Identify the facts where being wrong changes behavior. There are five here,
+including which version a branch currently points at, and which version a given
+run actually used.
 
-- **What is it?** (ontology: what exists, and what makes it that thing)
-- **What does it mean?** (semantics: one owner, in prose, in `docs/domain/`)
-- **Who decides it?** (authority: exactly one owner, one place it can change)
+For each one, record three things:
 
-Then write down every *other* copy of that fact that exists: the API response,
-the browser's local state, the audit log. Label each one with what it is
-allowed to be. It can be a **derived** view, a **cache**, an immutable
-**receipt**, dead **legacy** data, or throwaway **ephemeral** UI state. What it
-may never be is a second opinion.
+- Ontology. What the thing is, and what makes it that thing.
+- Semantics. What it means, in prose, owned by one document in `docs/domain/`.
+- Authority. Who decides it, and the single place it may change.
 
-> Copying data is fine. Copying *decision-making* is not.
+Then record every other copy of that fact that exists: the API response, the
+browser's local state, the audit log. Each copy is assigned a standing. It may
+be a derived view, a cache, an immutable receipt, dormant legacy data, or
+throwaway interface state. It may not be a second opinion.
 
-That's the whole rule. Everything else is machinery for checking it.
+> Duplicating data is permitted. Duplicating decision rights is not.
 
-## What's in here
+That is the entire rule. Everything below is the apparatus for enforcing it.
 
-The demo app is deliberately boring: Versions exist, a Branch points at one of
-them, Runs pin the exact Version they used, Results are frozen to their Run. The
-app isn't the point. The point is that all of it is written down and checked.
+## Why this example
+
+A trading system is a state machine on steroids. It carries more state than
+ordinary software, moves it faster, keeps it longer, and pays a great deal more
+for ambiguity about which copy is correct. Strip one down to its frame and the
+same small skeleton is always there.
+
+| In this repository | In a trading system |
+|---|---|
+| Version | an immutable model, strategy or risk configuration, identified by its content |
+| Branch head | the configuration that is live right now |
+| Run | one execution bound to one exact configuration: a valuation, a risk cycle, an order generation pass |
+| Result | the output sealed to that run: a mark, a P and L figure, a fill |
+| Branch head events | the record of when the live configuration changed, and to what |
+
+That skeleton is why this example is not a toy. It is the smallest arrangement
+that can still be asked the questions a trading system gets asked:
+
+- Which model was live at 14:32:07, when this trade printed? Not which model is
+  live now.
+- Which exact configuration produced this mark, and can it be produced again
+  next quarter, after the configuration has moved on eleven times?
+- The risk system and the execution system disagree about the current version.
+  Which one is entitled to be right?
+
+None of these are questions about behavior, so no test suite asks them. All
+three are questions about authority and about time. Each is answerable here, and
+each answer is a named column with a named owner, rather than an inference.
+
+The failure mode is equally familiar. A failover cache is added, sensibly, and
+persists a head version of its own. Nothing breaks. Both values are defensible.
+Nothing in the system is willing to say which one governs. That is why versions
+and results carry content hashes, why runs and results cannot be updated in
+place, and why the history of the live pointer is kept as receipts rather than
+inferred from the pointer's present value. Those are books and records
+properties before they are engineering ones.
+
+## Contents
+
+The application is small on purpose. Versions exist, a branch points at one,
+runs record the exact version they used, and results are sealed to their run.
+The application is not the subject. The subject is that all of it is written
+down and tested against.
 
 ```text
-docs/constitution/     the rules, and the machine-readable map of who decides what
-docs/domain/           plain-English meaning of each concept, one owner each
-docs/decisions/        records that grant authority to change something
+docs/constitution/     the rules, and a machine-readable map of who decides what
+docs/domain/           what each concept means, one owner per concept
+docs/decisions/        the records that grant authority to change something
 docs/work/changes/     one worked example of a change, start to finish
-src/coherence_demo/    the small Branch/Version/Run/Result app
+src/coherence_demo/    the branch, version, run and result application
 constitutional/        the checker: observe, measure, validate
-tests/constitutional/  changes the system must refuse to accept
+tests/constitutional/  changes the system is required to refuse
 tests/product/         ordinary behavioral tests
 ```
 
-The map is [`docs/constitution/authority-topology.yaml`](docs/constitution/authority-topology.yaml).
-It says, per fact: who owns it, which database column carries it, which
-functions may write it, where its history lives, and which other copies are
-allowed to exist.
+The map is
+[`docs/constitution/authority-topology.yaml`](docs/constitution/authority-topology.yaml).
+For each governed fact it names the owner, the database column that carries it,
+the functions permitted to write it, where its history is kept, and which other
+copies are sanctioned.
 
-## Run it
+## Running it
 
-Python 3.11 or newer.
+Python 3.11 or later.
 
 ```bash
 python -m pip install -e '.[dev]'
 
-python -m constitutional.discover --root .   # what durable state exists?
-python -m constitutional.measure  --root .   # what changed since the baseline?
-python -m constitutional.validate --root .   # is any of it unauthorized?
+python -m constitutional.discover --root .   # what durable state exists
+python -m constitutional.measure  --root .   # what has changed since the baseline
+python -m constitutional.validate --root .   # is any of it unauthorized
 pytest
 constitutional-coherence-demo
 ```
 
-## Try breaking it
+## Testing the controls
 
-`tests/constitutional/adversarial/` holds patches that *look* fine and must be
-rejected anyway: a second durable copy of the branch head, an unauthorized
+Three sets of test cases, all plain YAML.
+
+`tests/constitutional/adversarial/` holds changes that look reasonable and must
+be refused anyway: a second durable copy of the branch head, an unauthorized
 function writing to it, browser code reaching into the database to decide which
-version is current, history being reconstructed from mutable present state.
+version is current, history reconstructed from mutable present state.
 
-`tests/constitutional/gate/` holds a second kind: changes that are refused
-because of *how they were proposed*, not what they contain.
+`tests/constitutional/gate/` holds changes refused on procedural grounds rather
+than on their contents.
 
-`tests/constitutional/blindspots/` holds a third kind, and the most useful one:
-changes that are genuinely unconstitutional and are **accepted anyway**. Each
-one asserts that validation reports nothing, and explains why. See
-[What this does not do](#what-this-does-not-do).
+`tests/constitutional/blindspots/` holds the cases that matter most: real
+violations that the checker accepts. Each asserts that validation reports
+nothing, and states why. See [Control gaps](#control-gaps).
 
-All three are plain YAML. Adding your own case takes about ten lines, and that
-is the most useful thing you can do with this repository.
+Adding a case takes about ten lines, and is the most useful thing you can do
+with this repository.
 
----
+## The control that was missing
 
-# The part the essay leans on hardest: the loop
-
-The essay argues that agentic development should be a **closed loop**:
+The essay specifies a closed loop.
 
 ```text
 Audit  ->  Plan  ->  Implement  ->  Verify
@@ -106,100 +150,103 @@ Audit  ->  Plan  ->  Implement  ->  Verify
                         +---- mismatch +
 ```
 
-Plan says what constitutional change is authorized. Implement stays inside it.
-Verify measures what actually happened. If they disagree, you go back to Audit,
-and, crucially, *the agent doing the implementing does not get to resolve the
-disagreement by rewriting its own forecast.*
+Plan states the constitutional change being authorized. Implement stays inside
+it. Verify measures what actually happened. A discrepancy returns the work to
+Audit, and the party doing the implementation does not get to settle the
+discrepancy by restating what it intended.
 
-That last sentence is the entire load-bearing claim. It is also the easiest
-thing in the world to get wrong, because the natural way to build it is not a
-loop at all: a "what I planned" file next to a "what I did" file. Both files are
-text. The same agent writes both, in the same commit. Comparing them proves
-nothing.
+An auditor would recognize the risk immediately. If the same party writes both
+the forecast and the result, and the two are compared only against each other,
+nothing has been verified. That was the original arrangement here: a file
+recording what was planned, and a file recording what was done, adjacent in the
+same directory, written by the same agent in the same commit.
 
-So the harness here does three specific things.
+Three controls now stand behind it.
 
-### 1. Verify reads the repository, not the Plan
+### Verify measures the repository
 
-`python -m constitutional.measure` reconstructs the repository as it was at a
-baseline commit, observes it, observes the working tree, and **subtracts**. What
-comes out is the actual delta: which governed facts moved, which writers
-appeared, which representations were added or quietly reclassified.
+`constitutional/measure.py` reconstructs the repository as it stood at a
+baseline commit, observes both that state and the working tree, and takes the
+difference. The output is the change that actually occurred: which facts moved,
+which writers appeared, which copies were added or quietly reclassified.
 
-It never opens `constitutional-delta.yaml`. It cannot be talked into agreeing
-with a forecast, because it has not read one.
+It does not read the plan. It cannot be talked into agreeing with a forecast it
+has never seen.
 
-### 2. The authorizing decision must pre-date the change
+### Authorization has to pre-date the work
 
-A Plan cites a decision record that grants it authority. The gate checks that
-this record **existed at the baseline commit and was not edited by this change**.
+A plan cites a decision record that grants it authority. The check confirms that
+the record existed at the baseline and was not edited by the change it
+authorizes.
 
-Without that check, "authorized by a legitimate decision" collapses into "the
-agent wrote a file saying it was allowed to." With it, the authorization has to
-come from outside the change.
+Without that, "authorized by a legitimate decision" reduces to an agent writing
+a note giving itself permission.
 
-### 3. The change record is chosen by the diff
+### The change record is selected by the diff
 
-The gate looks at what actually changed, works out which change record that
-belongs to, and validates *that* one. Touch governed code with no open change
-record and it fails. Touch it under two records and it fails. Attach new work to
-a change already marked `COMPLETED` and it fails.
+The check reads what actually changed, determines which change record covers it,
+and validates that one. Governed code touched with no open record fails. Two
+open records fail. Work attached to a record already closed fails.
 
-The alternative, pointing the validator at a fixed path, means a change that
-never writes a record is a change nobody checks.
+Pointing the validator at a fixed path, as it did before, means any change that
+never files a record is a change nobody reviews.
 
-## What this does not do
+## Control gaps
 
-The essay does not have a limitations section. It should, so this repository has
-one, and the honest version is not short.
+The essay does not carry a limitations section. This repository does, and the
+honest version is not short.
 
-These limitations are not prose. Each one is a fixture in
-`tests/constitutional/blindspots/` that introduces a real violation and asserts
-that the harness says nothing. If the harness ever improves, those tests fail
-and tell you to move the fixture into `adversarial/` and delete the caveat here.
+The gaps below are not prose. Each is a test case in
+`tests/constitutional/blindspots/` that introduces a genuine violation and
+asserts that the checker says nothing. Should the coverage ever improve, those
+tests fail and instruct the reader to reclassify the case and delete the
+disclosure here.
 
-| What slips through | Why | Fixture |
+| Accepted today | Why | Case |
 |---|---|---|
-| A second durable Branch HEAD in a column named `release_pointer` | discovery only recognises names matching `durable_column_patterns` | `renamed_durable_carrier` |
-| An unauthorized `UPDATE branches SET head_version_id` built with an f-string | writer detection reads SQL string *literals*; an f-string is not one | `dynamic_sql_writer` |
-| Browser code choosing which Version is current, in a function called `effective_head` | the rule is a hardcoded list of verbs | `renamed_client_decision` |
-| The same duplicate HEAD carrier, in a `.sql` file the topology does not list | discovery reads only the files it was told about | `unlisted_schema_file` |
-| The `results` immutability trigger deleted, its wording left in a comment | the check asks whether a phrase appears in the schema text | `commented_immutability_trigger` |
+| A second durable branch head in a column named `release_pointer` | discovery recognizes only names matching `durable_column_patterns` | `renamed_durable_carrier` |
+| An unauthorized `UPDATE branches SET head_version_id` assembled with an f-string | writer detection reads SQL held as string constants, which an f-string is not | `dynamic_sql_writer` |
+| Browser code choosing the current version, in a function called `effective_head` | the rule is a fixed list of verbs | `renamed_client_decision` |
+| The same duplicate carrier, in a `.sql` file the map does not list | discovery reads only the files it was told about | `unlisted_schema_file` |
+| The `results` immutability guard deleted, its wording left in a comment | the check asks whether a phrase appears in the schema text | `commented_immutability_trigger` |
 
-The last one deserves its own sentence, because it inverts the argument this
-repository is making: the constitutional check passes, and the ordinary
-behavioral test in `tests/product/` is what catches it.
+The last one runs against the position this repository is taking. The
+constitutional check passes it. The ordinary behavioral test in
+`tests/product/` is what catches it.
 
-Compare `renamed_durable_carrier` against `adversarial/duplicate_head_pointer`,
-or `dynamic_sql_writer` against `adversarial/unauthorized_head_writer`. In each
-pair the pathology is the same and only the spelling differs. One is refused and
+Set `renamed_durable_carrier` beside `adversarial/duplicate_head_pointer`, or
+`dynamic_sql_writer` beside `adversarial/unauthorized_head_writer`. Within each
+pair the violation is identical and only the wording differs. One is refused and
 one is not.
 
-**So the checker does not understand your system.** It compares your repository
-against a map that a human wrote. It is very good at noticing that the two have
-drifted apart, and completely blind to anything the map never mentioned and the
-patterns never matched. The topology is doing the thinking; the tool is doing
-the bookkeeping.
+**The checker does not understand the system.** It compares the repository
+against a map a person wrote. It is reliable at detecting that the two have
+drifted apart, and blind to anything the map never covered and the patterns
+never matched. The map does the reasoning. The tool keeps the books.
 
-**The harness does not police itself.** `constitutional/`, `tests/`, and
-`.github/` are not governed paths, because a gate cannot meaningfully gate its
-own source. In a real deployment you protect those with review ownership rules.
+**The tooling is outside its own perimeter.** `constitutional/`, `tests/` and
+`.github/` are not governed paths, since a check cannot meaningfully police its
+own source. In production that exposure is covered by review ownership rules.
 
-**Completed changes cannot be re-verified.** Measuring a delta needs the state
-before the change, which means a commit. `CHANGE-042` predates the measuring
-harness, so it is marked `COMPLETED` and retained as documentation rather than
-re-checked. The gate refuses to let new work hide behind it.
+**Closed changes cannot be re-measured.** Measuring a change requires the state
+that preceded it, which means a commit. `CHANGE-042` predates the measuring
+tooling, so it is marked complete and retained as documentation rather than
+re-tested. New work cannot be attached to it.
 
-**Nothing here is a proof.** The useful question is not "is this airtight",
-because it isn't. It is "can an ordinary patch introduce a second authority
-without anyone noticing?" With a written-down topology and this gate in front of it, the
-answers get meaningfully harder to fake. That is the claim, and it is smaller
-than the one you might read into the essay.
+**None of this is a proof.** The question worth asking is not whether the
+controls are airtight, because they are not. It is whether an ordinary patch can
+introduce a second authority without anyone noticing. With a written map and
+this check in front of it, that becomes materially harder to do by accident.
+That is the claim, and it is narrower than the essay alone might suggest.
 
-## Where to look first
+## Where to start
 
-If you read three files, read these:
+Three files, in order.
 
-1. [`docs/constitution/authority-topology.yaml`](docs/constitution/authority-topology.yaml): the map. This is the artifact the idea lives or dies on.
-2. [`tests/constitutional/adversarial/`](tests/constitutional/adversarial/) and [`tests/constitutional/blindspots/`](tests/constitutional/blindspots/): what the harness catches, and what it misses, side by side.
-3. [`constitutional/measure.py`](constitutional/measure.py): the part that makes the loop closed rather than merely described.
+1. [`docs/constitution/authority-topology.yaml`](docs/constitution/authority-topology.yaml).
+   The map. The framework stands or falls on this document.
+2. [`tests/constitutional/adversarial/`](tests/constitutional/adversarial/) and
+   [`tests/constitutional/blindspots/`](tests/constitutional/blindspots/). What
+   the checker catches and what it misses, side by side.
+3. [`constitutional/measure.py`](constitutional/measure.py). What makes the loop
+   closed rather than merely described.
