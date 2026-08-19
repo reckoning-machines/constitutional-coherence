@@ -14,6 +14,8 @@ from typing import Any, Callable, Mapping
 
 import pytest
 
+from constitutional.measure import BASE_REF_ENV
+
 
 ROOT = Path(__file__).resolve().parents[2]
 IGNORED = shutil.ignore_patterns(
@@ -50,6 +52,20 @@ def _apply(repository: Path, mutation: Mapping[str, Any]) -> None:
 @pytest.fixture
 def apply_mutation() -> Callable[[Path, Mapping[str, Any]], None]:
     return _apply
+
+
+@pytest.fixture(autouse=True)
+def _no_ambient_baseline(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Never inherit a baseline from the surrounding environment.
+
+    CI exports CONSTITUTIONAL_BASE_REF so the workflow gates itself against the
+    trunk. That ref does not exist inside a test's temporary repository, and a
+    baseline that cannot be resolved fails closed, so every gate case would
+    report the gate as unavailable instead of exercising it. Each test supplies
+    its own baseline or deliberately has none.
+    """
+
+    monkeypatch.delenv(BASE_REF_ENV, raising=False)
 
 
 @pytest.fixture
