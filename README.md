@@ -272,9 +272,23 @@ Three files, in order.
 
 ## Example
 
-A worked example is docs/work/changes/CHANGE-043/.
-A survey of nine unrelated repositories found that discovery could not distinguish "no durable state"
-from "could not read the schema" - one repository with eighteen schema files yielded zero tables
-and would have validated clean having read none of them.
-The defect was disclosed as a passing blindspot case, then closed, and the case moved to adversarial/.
-The before-state is recorded: validation returned nothing.
+The repository is the primary worked example. The essay supplies the framing;
+the tests and change records show how it behaves in practice.
+
+A survey of nine unrelated repositories found that discovery identified
+20–40% of the authority-bearing shapes found by a broader search, compared with
+83% in this repository. One surveyed repository listed eighteen schema files,
+but the parser produced zero tables. Validation would have succeeded without
+establishing coverage of any of those files.
+
+[`tests/constitutional/blindspots/`](tests/constitutional/blindspots/) records
+cases where validation currently reports nothing. Each case asserts that
+silence, so improved coverage causes the test to fail and prompts the case to
+move to `adversarial/`.
+
+[`CHANGE-043`](docs/work/changes/CHANGE-043/) records that sequence for the
+zero-table defect. The silent result was first preserved as a passing blindspot
+test. Discovery was then changed to refuse a listed `.sql` file when it could
+not establish table coverage, and the case moved to `adversarial/`. A second
+blindspot records the remaining bypass: removing the file from `schema_files`
+makes its state invisible to discovery again.
