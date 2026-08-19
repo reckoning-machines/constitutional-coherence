@@ -1,0 +1,18 @@
+name: durable carrier declared in a schema file the topology never lists
+pathology: >-
+  `recovery_state.recovered_head_version_id` is exactly the duplicate HEAD
+  carrier that `adversarial/duplicate_head_pointer.yaml` refuses. Here it is
+  identical in every respect except which file the CREATE TABLE lives in.
+why_it_is_missed: >-
+  Discovery reads only the files named in `discovery.schema_files`. A migration,
+  an extension schema, or a second database that nobody added to that list is
+  not unclassified state. It is state the harness never looked for.
+caught_by: nothing in this repository
+mutations:
+  - operation: write
+    path: src/coherence_demo/recovery_schema.sql
+    content: |
+      CREATE TABLE IF NOT EXISTS recovery_state (
+          recovery_id TEXT PRIMARY KEY,
+          recovered_head_version_id TEXT NOT NULL
+      );

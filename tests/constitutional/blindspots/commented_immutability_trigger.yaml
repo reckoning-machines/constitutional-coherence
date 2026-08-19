@@ -1,0 +1,26 @@
+name: immutability protection deleted, its wording left behind in a comment
+pathology: >-
+  `results` is declared `immutable: true`. Its UPDATE guard is gone, so a
+  published Result can be rewritten in place, which destroys the receipt
+  property the whole Run/Result binding rests on.
+why_it_is_missed: >-
+  The immutability check asks whether the string `before update on results`
+  appears anywhere in the schema text. A comment satisfies it exactly as well as
+  a trigger does. This is the harness's weakest check: it tests for the presence
+  of words, not the presence of a guarantee.
+caught_by: >-
+  the behavioral suite. `tests/product/test_run_result_authority.py::
+  test_result_and_run_are_physically_immutable` fails. Worth noticing: here the
+  ordinary test is stronger than the constitutional one, which is the reverse of
+  the arrangement this repository exists to argue for.
+mutations:
+  - operation: replace
+    path: src/coherence_demo/schema.sql
+    find: |
+      CREATE TRIGGER IF NOT EXISTS results_immutable_update
+      BEFORE UPDATE ON results
+      BEGIN
+          SELECT RAISE(ABORT, 'results are immutable');
+      END;
+    content: |
+      -- Removed: BEFORE UPDATE ON results guard, for write throughput.

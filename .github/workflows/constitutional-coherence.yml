@@ -9,11 +9,45 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The gate measures the working tree against a baseline commit.
+          # Without full history there is no baseline, and no gate.
+          fetch-depth: 0
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - run: python -m pip install -e '.[dev]'
-      - run: python -m constitutional.discover --root .
-      - run: python -m constitutional.validate --root .
+
+      - name: Resolve the constitutional baseline
+        run: |
+          set -euo pipefail
+          base=""
+          if [ -n "${{ github.base_ref }}" ]; then
+            git fetch --no-tags origin "${{ github.base_ref }}"
+            base="origin/${{ github.base_ref }}"
+          else
+            git fetch --no-tags origin main || true
+            before="${{ github.event.before }}"
+            if [ -n "$before" ] && git rev-parse --verify --quiet "$before^{commit}" >/dev/null; then
+              base="$before"
+            elif git rev-parse --verify --quiet "origin/main^{commit}" >/dev/null; then
+              base="$(git merge-base HEAD origin/main)"
+            fi
+          fi
+          echo "Constitutional baseline: ${base:-<none, falling back to local resolution>}"
+          echo "CONSTITUTIONAL_BASE_REF=$base" >> "$GITHUB_ENV"
+
+      - name: Observe the repository
+        run: python -m constitutional.discover --root .
+
+      - name: Measure the actual Constitutional Delta
+        run: python -m constitutional.measure --root .
+
+      - name: Validate, with the gate required
+        run: python -m constitutional.validate --root . --require-gate
+
       - run: pytest
+
       - run: constitutional-coherence-demo

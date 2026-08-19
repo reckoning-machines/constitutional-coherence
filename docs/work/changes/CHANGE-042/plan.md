@@ -1,4 +1,6 @@
-# CHANGE-042 Plan — Branch summary projection
+# CHANGE-042 Plan: Branch summary projection
+
+Status: **COMPLETED** (retained worked example).
 
 Legitimate authority: `docs/decisions/DEC-014-version-currentness.md`.
 

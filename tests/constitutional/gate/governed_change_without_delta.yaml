@@ -1,0 +1,9 @@
+name: governed source change carrying no Constitutional Delta
+mutations:
+  - operation: append
+    path: src/coherence_demo/api/projections.py
+    content: |
+
+      # An ordinary-looking edit inside the governed perimeter.
+expect: fail
+expected_error: "governed change without a Constitutional Delta"

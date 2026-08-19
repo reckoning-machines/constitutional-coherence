@@ -1,0 +1,33 @@
+name: constitution amended inside a NO_CHANGE delta
+mutations:
+  - operation: append
+    path: docs/constitution/authority-topology.yaml
+    content: |
+
+      # trailing note
+  - operation: write
+    path: docs/work/changes/CHANGE-902/constitutional-delta.yaml
+    content: |
+      change_id: CHANGE-902
+      status: OPEN
+      authorized_by: docs/decisions/DEC-014-version-currentness.md
+      touched_facts: []
+      ontology:
+        status: NO_CHANGE
+      semantics:
+        status: NO_CHANGE
+      authority:
+        status: NO_CHANGE
+        canonical_authority_changed: false
+        commit_boundary_changed: false
+        writers_added: []
+        decision_rights_added: []
+        historical_sources_changed: false
+        client_responsibility_changed: false
+        representations_added: []
+      duplicate_independent_writers: false
+      legacy_successor_writes: false
+      browser_owned_truth: false
+      mutable_present_historical_dependency: false
+expect: fail
+expected_error: "declares authority status NO_CHANGE"

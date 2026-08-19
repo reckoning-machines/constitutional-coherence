@@ -1,0 +1,18 @@
+name: browser-side currentness synthesis under an unrecognised verb
+pathology: >-
+  Client code picks between two sources to decide which Version is current. The
+  constitution reserves that decision for BranchAuthority, and denies
+  `select_currentness` to every browser representation.
+why_it_is_missed: >-
+  The rule is a substring match against a hardcoded verb list:
+  `reconcile_current`, `select_current`, `resolve_current`. `effective_head`
+  describes exactly the same act and matches none of them. The near-identical
+  fixture in `adversarial/browser_reconciliation.yaml` is refused purely because
+  of what its function is called.
+caught_by: nothing in this repository
+mutations:
+  - operation: write
+    path: src/coherence_demo/web/pick.py
+    content: |
+      def effective_head(primary, fallback):
+          return fallback.get("head_version_id") or primary.get("head_version_id")
