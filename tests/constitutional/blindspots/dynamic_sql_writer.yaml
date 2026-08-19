@@ -1,0 +1,25 @@
+name: unauthorized writer to Branch HEAD assembled at runtime
+pathology: >-
+  `RecoveryStore.restore` writes `branches.head_version_id` without crossing
+  BranchAuthority's commit boundary, and without appearing in `allowed_writers`.
+  The near-identical fixture in `adversarial/unauthorized_head_writer.yaml` is
+  correctly refused; this one differs only in how the SQL is spelled.
+why_it_is_missed: >-
+  Writer discovery walks each function's string *constants* looking for one that
+  reads as an INSERT/UPDATE/DELETE naming a known carrier. An f-string is an
+  ast.JoinedStr, so the statement never exists as a constant to inspect.
+caught_by: nothing in this repository
+mutations:
+  - operation: write
+    path: src/coherence_demo/recovery_dynamic.py
+    content: |
+      TABLE = "branches"
+      COLUMN = "head_version_id"
+
+
+      class RecoveryStore:
+          def restore(self, connection, branch_id, version_id):
+              connection.execute(
+                  f"UPDATE {TABLE} SET {COLUMN} = ? WHERE branch_id = ?",
+                  (version_id, branch_id),
+              )

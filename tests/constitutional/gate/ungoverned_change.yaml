@@ -1,0 +1,8 @@
+name: documentation-only change requires no Constitutional Delta
+mutations:
+  - operation: append
+    path: README.md
+    content: |
+
+      A clarifying sentence.
+expect: pass

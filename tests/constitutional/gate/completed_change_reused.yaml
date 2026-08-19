@@ -1,0 +1,14 @@
+name: new governed work smuggled under a merged change record
+mutations:
+  - operation: append
+    path: src/coherence_demo/api/projections.py
+    content: |
+
+      # Governed edit.
+  - operation: append
+    path: docs/work/changes/CHANGE-042/plan.md
+    content: |
+
+      Also covers the new work.
+expect: fail
+expected_error: "governed work attributed to a completed change record"

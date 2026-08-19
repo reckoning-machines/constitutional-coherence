@@ -1,0 +1,31 @@
+name: second durable Branch HEAD authority under an unrecognised column name
+pathology: >-
+  `pinned_release.release_pointer` durably answers "which Version is this Branch
+  on", and `ReleasePin.effective_version` reads it as truth. That is a second
+  decision authority for `branch.current_version`.
+why_it_is_missed: >-
+  Discovery only treats a column as durable state if its name matches
+  `discovery.durable_column_patterns`: `*_version_id`, `head_*`, `current_*`,
+  and so on. `release_pointer` matches none of them, so the column is never a
+  candidate carrier and never has to be classified.
+caught_by: nothing in this repository
+mutations:
+  - operation: append
+    path: src/coherence_demo/schema.sql
+    content: |
+
+      CREATE TABLE IF NOT EXISTS pinned_release (
+          pin_id TEXT PRIMARY KEY,
+          branch_id TEXT NOT NULL,
+          release_pointer TEXT NOT NULL
+      );
+  - operation: write
+    path: src/coherence_demo/pinning.py
+    content: |
+      class ReleasePin:
+          def effective_version(self, connection, branch_id):
+              row = connection.execute(
+                  "SELECT release_pointer FROM pinned_release WHERE branch_id = ?",
+                  (branch_id,),
+              ).fetchone()
+              return row[0] if row else None

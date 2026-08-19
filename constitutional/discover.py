@@ -270,3 +270,88 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def path_matches(path: str, pattern: str) -> bool:
+    """Match a repository-relative POSIX path against a glob, with or without `**/`."""
+
+    if fnmatch(path, pattern):
+        return True
+    if fnmatch(path, pattern.replace("**/", "")):
+        return True
+    if pattern.endswith("/**") and fnmatch(path, f"{pattern}/*"):
+        return True
+    return False
+
+
+def canonical_carriers(topology: Mapping[str, Any]) -> dict[str, set[str]]:
+    """Map each canonical carrier locator to the governed facts claiming it."""
+
+    owners: dict[str, set[str]] = {}
+    for fact_id, fact in (topology.get("governed_facts") or {}).items():
+        canonical = fact.get("canonical_authority") or {}
+        for locator in canonical.get("carriers", ()):
+            owners.setdefault(str(locator), set()).add(str(fact_id))
+    return owners
+
+
+def declared_carriers(topology: Mapping[str, Any]) -> dict[str, set[str]]:
+    """Map every declared durable locator to the governed facts that classify it."""
+
+    owners = canonical_carriers(topology)
+    for fact_id, fact in (topology.get("governed_facts") or {}).items():
+        historical = fact.get("historical_carrier")
+        if isinstance(historical, Mapping):
+            for locator in historical.get("carriers", ()):
+                owners.setdefault(str(locator), set()).add(str(fact_id))
+        for representation in fact.get("representations", ()):
+            locator = str(representation.get("locator") or "")
+            if locator.startswith(("sqlite.", "json_file.")):
+                owners.setdefault(locator, set()).add(str(fact_id))
+    return owners
+
+
+def allowed_writers(topology: Mapping[str, Any]) -> dict[str, set[str]]:
+    """Map each declared durable locator to the writer symbols permitted to write it."""
+
+    allowed: dict[str, set[str]] = {}
+    for fact in (topology.get("governed_facts") or {}).values():
+        canonical = fact.get("canonical_authority") or {}
+        writers = {str(item) for item in canonical.get("allowed_writers", ())}
+        for locator in canonical.get("carriers", ()):
+            allowed.setdefault(str(locator), set()).update(writers)
+        historical = fact.get("historical_carrier")
+        if isinstance(historical, Mapping):
+            historical_writers = {
+                str(item) for item in historical.get("allowed_writers", writers)
+            }
+            for locator in historical.get("carriers", ()):
+                allowed.setdefault(str(locator), set()).update(historical_writers)
+        for representation in fact.get("representations", ()):
+            locator = str(representation.get("locator") or "")
+            if locator.startswith(("sqlite.", "json_file.")):
+                allowed.setdefault(locator, set()).update(
+                    str(item) for item in representation.get("writers", ())
+                )
+    return allowed
+
+
+def representation_index(topology: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+    """Index every declared subordinate representation by its identifier."""
+
+    index: dict[str, dict[str, Any]] = {}
+    for fact_id, fact in (topology.get("governed_facts") or {}).items():
+        for representation in fact.get("representations", ()):
+            representation_id = str(representation.get("id") or "")
+            if not representation_id:
+                continue
+            index[representation_id] = {
+                "governed_fact": str(fact_id),
+                "classification": str(representation.get("classification") or ""),
+                "locator": str(representation.get("locator") or ""),
+                "denied_decision_rights": sorted(
+                    str(item) for item in representation.get("denied_decision_rights", ())
+                ),
+                "writers": sorted(str(item) for item in representation.get("writers", ())),
+            }
+    return index

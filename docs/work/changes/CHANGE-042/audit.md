@@ -1,4 +1,6 @@
-# CHANGE-042 Audit — Branch summary projection
+# CHANGE-042 Audit: Branch summary projection
+
+Status: **COMPLETED** (retained worked example).
 
 Governed fact touched: `branch.current_version`.
 

@@ -1,18 +1,30 @@
 from __future__ import annotations
 
 import argparse
-import ast
-from fnmatch import fnmatch
 from pathlib import Path
 import re
-from typing import Any, Iterable, Mapping
+from typing import Any, Mapping
 
 from constitutional.discover import (
     TOPOLOGY_PATH,
     ObservedRepository,
+    allowed_writers,
+    declared_carriers,
     discover_repository,
     load_yaml,
+    path_matches,
     write_observed,
+)
+from constitutional.measure import (
+    active_change_ids,
+    changed_paths,
+    compare_measured,
+    dependency_findings,
+    load_gate_rules,
+    measure_delta,
+    path_exists_at,
+    resolve_base_ref,
+    write_measured,
 )
 
 
@@ -34,46 +46,6 @@ DEFAULT_ACTUAL_DELTA = Path(
 
 class ConstitutionalViolation(RuntimeError):
     pass
-
-
-def _declared_carriers(topology: Mapping[str, Any]) -> dict[str, set[str]]:
-    owners: dict[str, set[str]] = {}
-    for fact_id, fact in (topology.get("governed_facts") or {}).items():
-        canonical = fact.get("canonical_authority") or {}
-        for locator in canonical.get("carriers", ()):
-            owners.setdefault(str(locator), set()).add(str(fact_id))
-        historical = fact.get("historical_carrier")
-        if isinstance(historical, Mapping):
-            for locator in historical.get("carriers", ()):
-                owners.setdefault(str(locator), set()).add(str(fact_id))
-        for representation in fact.get("representations", ()):
-            locator = str(representation.get("locator") or "")
-            if locator.startswith(("sqlite.", "json_file.")):
-                owners.setdefault(locator, set()).add(str(fact_id))
-    return owners
-
-
-def _allowed_writers(topology: Mapping[str, Any]) -> dict[str, set[str]]:
-    allowed: dict[str, set[str]] = {}
-    for fact in (topology.get("governed_facts") or {}).values():
-        canonical = fact.get("canonical_authority") or {}
-        writers = {str(item) for item in canonical.get("allowed_writers", ())}
-        for locator in canonical.get("carriers", ()):
-            allowed.setdefault(str(locator), set()).update(writers)
-        historical = fact.get("historical_carrier")
-        if isinstance(historical, Mapping):
-            historical_writers = {
-                str(item) for item in historical.get("allowed_writers", writers)
-            }
-            for locator in historical.get("carriers", ()):
-                allowed.setdefault(str(locator), set()).update(historical_writers)
-        for representation in fact.get("representations", ()):
-            locator = str(representation.get("locator") or "")
-            if locator.startswith(("sqlite.", "json_file.")):
-                allowed.setdefault(locator, set()).update(
-                    str(item) for item in representation.get("writers", ())
-                )
-    return allowed
 
 
 def _markdown_anchor_exists(path: Path, anchor: str) -> bool:
@@ -116,8 +88,8 @@ def validate_topology(
         errors.append("authority topology has no governed facts")
         return errors
 
-    declared = _declared_carriers(topology)
-    allowed = _allowed_writers(topology)
+    declared = declared_carriers(topology)
+    allowed = allowed_writers(topology)
     for carrier in observed.durable_carriers:
         if carrier.locator not in declared:
             errors.append(
@@ -205,58 +177,15 @@ def validate_topology(
     return errors
 
 
-def _matches_path(path: str, pattern: str) -> bool:
-    if fnmatch(path, pattern):
-        return True
-    return fnmatch(path, pattern.replace("**/", ""))
-
-
 def validate_dependencies(
     root: Path,
     rules: Mapping[str, Any],
     observed: ObservedRepository,
 ) -> list[str]:
-    errors: list[str] = []
-    for rule in rules.get("forbidden_imports", ()):
-        for path, imports in observed.imports.items():
-            if not _matches_path(path, str(rule["from_glob"])):
-                continue
-            for imported in imports:
-                for forbidden in rule.get("modules", ()):
-                    if imported == forbidden or imported.startswith(f"{forbidden}."):
-                        errors.append(
-                            f"forbidden authority import: {path} imports {imported}"
-                        )
+    """Import and naming boundaries, reported as flat constitutional errors."""
 
-    client_rule = rules.get("forbidden_client_decision_names") or {}
-    client_glob = str(client_rule.get("from_glob") or "")
-    for symbol in observed.python_symbols:
-        module = ".".join(symbol.split(".")[:-1])
-        path = _source_for_module(root, module)
-        try:
-            relative = path.relative_to(root).as_posix()
-        except ValueError:
-            continue
-        if client_glob and _matches_path(relative, client_glob):
-            name = symbol.rsplit(".", 1)[-1]
-            if any(token in name for token in client_rule.get("contains", ())):
-                errors.append(f"client-owned currentness decision surface: {symbol}")
-
-    for rule in rules.get("historical_read_boundaries", ()):
-        for path, imports in observed.imports.items():
-            if not _matches_path(path, str(rule["from_glob"])):
-                continue
-            for forbidden in rule.get("forbidden_modules", ()):
-                if forbidden in imports:
-                    errors.append(
-                        f"mutable-present historical dependency: {path} imports {forbidden}"
-                    )
-            required = set(str(item) for item in rule.get("required_modules", ()))
-            if required and not required.intersection(imports):
-                errors.append(
-                    f"historical owner missing: {path} must import one of {sorted(required)}"
-                )
-    return errors
+    findings = dependency_findings(root, rules, observed)
+    return [error for group in findings.values() for error in group]
 
 
 def validate_delta(
@@ -329,25 +258,182 @@ def validate_actual_delta(
     return errors
 
 
+def validate_gate(
+    root: Path,
+    topology: Mapping[str, Any],
+    observed: ObservedRepository,
+    rules: Mapping[str, Any],
+    *,
+    base: str | None = None,
+    require_gate: bool = False,
+) -> list[str]:
+    """Gate the working tree against the change record that authorizes it.
+
+    The gate selects the Constitutional Delta from the diff rather than from a
+    constant, refuses a delta legitimised by a decision record that the same
+    change created or edited, and compares the authorized forecast against a
+    delta measured from the repository itself.
+    """
+
+    root = root.resolve()
+    base_ref = resolve_base_ref(root, base)
+    if base_ref is None:
+        if require_gate:
+            return [
+                "constitutional gate unavailable: no git baseline to measure against"
+            ]
+        return []
+
+    gate_rules_path = root / "constitutional/gate_rules.yaml"
+    if not gate_rules_path.is_file():
+        return ["constitutional gate rules are missing: constitutional/gate_rules.yaml"]
+    gate_rules = load_gate_rules(root)
+
+    changed = changed_paths(root, base_ref)
+    governed_globs = [str(item) for item in gate_rules.get("governed_paths", ())]
+    governed = [
+        path
+        for path in changed
+        if any(path_matches(path, glob) for glob in governed_globs)
+    ]
+    if not governed:
+        return []
+
+    errors: list[str] = []
+    changes_root = str(gate_rules.get("changes_root") or "docs/work/changes")
+    change_ids = active_change_ids(changed, changes_root)
+    if not change_ids:
+        return [
+            "governed change without a Constitutional Delta: "
+            + ", ".join(governed)
+        ]
+    if len(change_ids) > 1:
+        return [
+            "ambiguous active change: governed work touches "
+            + ", ".join(change_ids)
+        ]
+
+    change_id = change_ids[0]
+    change_dir = Path(changes_root) / change_id
+    delta_path = root / change_dir / "constitutional-delta.yaml"
+    if not delta_path.is_file():
+        return [
+            f"{change_id}: governed change has no "
+            f"{(change_dir / 'constitutional-delta.yaml').as_posix()}"
+        ]
+    delta = load_yaml(delta_path)
+    record_status = str(delta.get("status") or "OPEN").upper()
+    if record_status == "COMPLETED":
+        return [
+            f"governed work attributed to a completed change record: {change_id}. "
+            "A merged change cannot be re-authorized; open a new change."
+        ]
+    if record_status != "OPEN":
+        return [f"{change_id}: change record status must be OPEN or COMPLETED"]
+    errors.extend(f"{change_id}: {error}" for error in validate_delta(root, topology, delta))
+
+    authorized_by = str(delta.get("authorized_by") or "")
+    if authorized_by:
+        if authorized_by in changed:
+            errors.append(
+                f"{change_id}: the authorizing decision record was written or edited by "
+                f"the change it authorizes: {authorized_by}"
+            )
+        elif not path_exists_at(root, base_ref, authorized_by):
+            errors.append(
+                f"{change_id}: the authorizing decision record did not exist before the "
+                f"change: {authorized_by}"
+            )
+
+    for rule in gate_rules.get("declaration_required", ()):
+        globs = [str(item) for item in rule.get("paths", ())]
+        touched = [
+            path for path in changed if any(path_matches(path, glob) for glob in globs)
+        ]
+        if not touched:
+            continue
+        section = str(rule.get("section") or "")
+        status = str((delta.get(section) or {}).get("status") or "")
+        unlawful = status in {"", "NO_CHANGE"} if section == "authority" else status != "CHANGE"
+        if unlawful:
+            errors.append(
+                f"{change_id}: {touched[0]} changed, but the Constitutional Delta "
+                f"declares {section} status {status or 'MISSING'}"
+            )
+
+    measured = measure_delta(
+        root,
+        base_ref,
+        topology=topology,
+        rules=rules,
+        observed=observed,
+        change_id=change_id,
+    )
+    write_measured(root, measured)
+    errors.extend(
+        f"{change_id}: {error}" for error in compare_measured(delta, measured)
+    )
+
+    actual_path = root / change_dir / "actual-constitutional-delta.yaml"
+    if not actual_path.is_file():
+        errors.append(
+            f"{change_id}: Verify record is missing: "
+            f"{(change_dir / 'actual-constitutional-delta.yaml').as_posix()}"
+        )
+    else:
+        actual = load_yaml(actual_path)
+        errors.extend(
+            f"{change_id}: {error}"
+            for error in compare_measured(
+                actual, measured, label="the recorded Verify record"
+            )
+        )
+        errors.extend(
+            f"{change_id}: {error}" for error in validate_actual_delta(delta, actual)
+        )
+    return errors
+
+
 def validate_repository(
     root: Path,
     *,
     delta_path: Path = DEFAULT_DELTA,
     actual_delta_path: Path = DEFAULT_ACTUAL_DELTA,
+    base: str | None = None,
+    require_gate: bool = False,
 ) -> list[str]:
+    """Validate standing repository shape, retained change records, and the gate.
+
+    Standing validation answers "is the repository coherent right now". The gate
+    answers "was this particular change authorized", which needs a baseline and
+    therefore needs git.
+    """
+
     root = root.resolve()
     topology = load_yaml(root / TOPOLOGY_PATH)
     observed = discover_repository(root, topology)
     write_observed(root, observed)
     rules = load_yaml(root / "constitutional/dependency_rules.yaml")
-    delta = load_yaml(root / delta_path)
-    actual_delta = load_yaml(root / actual_delta_path)
-    return [
+    errors = [
         *validate_topology(root, topology, observed),
         *validate_dependencies(root, rules, observed),
-        *validate_delta(root, topology, delta),
-        *validate_actual_delta(delta, actual_delta),
     ]
+    if (root / delta_path).is_file() and (root / actual_delta_path).is_file():
+        retained = load_yaml(root / delta_path)
+        retained_actual = load_yaml(root / actual_delta_path)
+        errors.extend(validate_delta(root, topology, retained))
+        errors.extend(validate_actual_delta(retained, retained_actual))
+    errors.extend(
+        validate_gate(
+            root,
+            topology,
+            observed,
+            rules,
+            base=base,
+            require_gate=require_gate,
+        )
+    )
+    return errors
 
 
 def main() -> None:
@@ -355,11 +441,24 @@ def main() -> None:
     parser.add_argument("--root", type=Path, default=Path.cwd())
     parser.add_argument("--delta", type=Path, default=DEFAULT_DELTA)
     parser.add_argument("--actual-delta", type=Path, default=DEFAULT_ACTUAL_DELTA)
+    parser.add_argument(
+        "--base",
+        type=str,
+        default=None,
+        help="git ref the working tree is measured against",
+    )
+    parser.add_argument(
+        "--require-gate",
+        action="store_true",
+        help="fail when no git baseline is available instead of skipping the gate",
+    )
     args = parser.parse_args()
     errors = validate_repository(
         args.root,
         delta_path=args.delta,
         actual_delta_path=args.actual_delta,
+        base=args.base,
+        require_gate=args.require_gate,
     )
     if errors:
         print("CONSTITUTIONAL FAILURE")

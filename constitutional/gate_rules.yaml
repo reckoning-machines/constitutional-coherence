@@ -1,0 +1,33 @@
+# Which repository paths carry constitutional weight, and therefore require an
+# authorized Constitutional Delta before they may change.
+#
+# The harness itself (constitutional/, tests/, .github/) is deliberately NOT
+# governed here. A gate cannot police its own source. In a real deployment the
+# harness is protected by review ownership rules, not by the harness.
+
+governed_paths:
+  - src/coherence_demo/**
+  - docs/constitution/**
+  - docs/domain/**
+
+# Editing these paths is a constitutional act in its own right. A change that
+# touches them must declare the corresponding non-trivial delta status.
+declaration_required:
+  - paths:
+      - docs/constitution/**
+    section: authority
+    reason: >-
+      The Authority Topology is the executable constitution. Amending it is an
+      authority change and cannot ride along inside a NO_CHANGE delta.
+  - paths:
+      - docs/domain/**
+    section: semantics
+    reason: >-
+      Scoped semantic owners define product meaning. Editing one is a semantic
+      change by definition.
+
+# Where change records live.
+changes_root: docs/work/changes
+
+# Paths whose modification cannot legitimise the same change.
+authorization_root: docs/decisions
