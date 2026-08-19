@@ -11,6 +11,9 @@ no longer writing software but preserving the intent of the system you already
 have. This repository is the argument in executable form, including the places
 where it does NOT hold.
 
+This repo is a carve out from IRIS (our governed research operating system)
+to continue to proof the concept of Constitutional Coherence.
+
 ## The exposure
 
 A position sits in two systems: the trading system that produced the fills, and
