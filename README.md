@@ -6,7 +6,7 @@ A small, runnable implementation of the framework set out in
 The essay argues that once code is cheap to produce, the binding constraint is
 no longer writing software but preserving the intent of the system you already
 have. This repository is the argument in executable form, including the places
-where it does not hold.
+where it does NOT hold.
 
 ## The exposure
 
@@ -272,10 +272,10 @@ Three files, in order.
 
 ## Example
 
-The repository is the primary worked example. The essay provides the framing;
+The repository is itself the primary worked example. The essay provides the framing;
 the tests and change records show how the framework behaves in practice.
 
-In a survey of nine unrelated repositories, discovery found 20–40% of the
+In a survey of nine unrelated local repositories, discovery found 20–40% of the
 authority-bearing structures found by a broader search, compared with 83% in
 this repository. In one repository, the topology listed eighteen schema files,
 but the parser recognized zero tables. Validation would still have passed,
