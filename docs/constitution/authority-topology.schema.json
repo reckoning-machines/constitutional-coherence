@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Constitutional Coherence Authority Topology",
+  "type": "object",
+  "required": ["schema_version", "classifications", "discovery", "governed_facts"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "classifications": {
+      "type": "array",
+      "prefixItems": [
+        {"const": "AUTHORITATIVE"},
+        {"const": "DERIVED"},
+        {"const": "CACHE"},
+        {"const": "RECEIPT"},
+        {"const": "LEGACY_ONLY"},
+        {"const": "EPHEMERAL"}
+      ],
+      "items": false
+    },
+    "discovery": {"type": "object"},
+    "governed_facts": {"type": "object", "minProperties": 1}
+  },
+  "additionalProperties": false
+}

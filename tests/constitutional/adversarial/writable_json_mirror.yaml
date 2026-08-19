@@ -1,0 +1,13 @@
+name: writable JSON mirror of current Version
+mutation:
+  operation: write
+  path: src/coherence_demo/recovery_mirror.py
+  content: |
+    import json
+    from pathlib import Path
+
+    def save_mirror(version_id):
+        Path("branch_mirror.json").write_text(
+            json.dumps({"current_version_id": version_id})
+        )
+expected_error: "unclassified durable carrier: json_file.branch_mirror.json.current_version_id"

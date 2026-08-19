@@ -1,0 +1,10 @@
+name: durable duplicate Branch HEAD
+mutation:
+  operation: append
+  path: src/coherence_demo/schema.sql
+  content: |
+    CREATE TABLE recovery_state (
+        recovery_id TEXT PRIMARY KEY,
+        recovered_head_version_id TEXT NOT NULL
+    );
+expected_error: "unclassified durable carrier: sqlite.recovery_state.recovered_head_version_id"

@@ -1,0 +1,8 @@
+name: browser-owned currentness reconciliation
+mutation:
+  operation: write
+  path: src/coherence_demo/web/reconcile.py
+  content: |
+    def reconcile_current(primary, recovery):
+        return recovery.get("head_version_id") or primary.get("head_version_id")
+expected_error: "client-owned currentness decision surface: coherence_demo.web.reconcile.reconcile_current"

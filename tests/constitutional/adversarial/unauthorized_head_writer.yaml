@@ -1,0 +1,12 @@
+name: alternate Branch HEAD writer
+mutation:
+  operation: write
+  path: src/coherence_demo/recovery.py
+  content: |
+    class RecoveryStore:
+        def restore(self, connection, branch_id, version_id):
+            connection.execute(
+                "UPDATE branches SET head_version_id = ? WHERE branch_id = ?",
+                (version_id, branch_id),
+            )
+expected_error: "unauthorized writer: coherence_demo.recovery.RecoveryStore.restore -> sqlite.branches.head_version_id"

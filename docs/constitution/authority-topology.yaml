@@ -1,0 +1,169 @@
+schema_version: 1
+
+classifications:
+  - AUTHORITATIVE
+  - DERIVED
+  - CACHE
+  - RECEIPT
+  - LEGACY_ONLY
+  - EPHEMERAL
+
+discovery:
+  schema_files:
+    - src/coherence_demo/schema.sql
+  durable_column_patterns:
+    - version_id
+    - "*_version_id"
+    - run_id
+    - "*_run_id"
+    - "head_*"
+    - "current_*"
+    - "latest_*"
+    - "selected_*"
+    - "recovered_*"
+  source_roots:
+    - src/coherence_demo
+
+governed_facts:
+  version.identity:
+    subject: Version
+    semantic_owner: docs/domain/version.md#version-identity
+    relevant_lifecycle: immutable
+    canonical_authority:
+      owner: VersionAuthority
+      classification: AUTHORITATIVE
+      immutable: true
+      carriers:
+        - sqlite.versions.version_id
+      commit_boundary: coherence_demo.application.authorities.VersionAuthority
+      allowed_writers:
+        - coherence_demo.persistence.sqlite.VersionRepository.create
+    historical_carrier: self
+    representations: []
+
+  branch.current_version:
+    subject: Branch
+    semantic_owner: docs/domain/version.md#branch-current-version
+    relevant_lifecycle: current
+    canonical_authority:
+      owner: BranchAuthority
+      classification: AUTHORITATIVE
+      carriers:
+        - sqlite.branches.head_version_id
+      commit_boundary: coherence_demo.application.authorities.BranchAuthority
+      allowed_writers:
+        - coherence_demo.persistence.sqlite.BranchRepository.create
+        - coherence_demo.persistence.sqlite.BranchRepository.advance_head
+    historical_carrier:
+      owner: BranchAuthority
+      carriers:
+        - sqlite.branch_head_events.previous_version_id
+        - sqlite.branch_head_events.new_version_id
+      classification: RECEIPT
+      immutable: true
+      allowed_writers:
+        - coherence_demo.persistence.sqlite.BranchRepository.create
+        - coherence_demo.persistence.sqlite.BranchRepository.advance_head
+      denied_decision_rights:
+        - select_currentness
+        - authorize_transition
+        - resolve_conflict
+    representations:
+      - id: api.branch_summary.head_version_id
+        locator: coherence_demo.api.projections.branch_summary
+        classification: DERIVED
+        rebuildable_from:
+          - sqlite.branches.head_version_id
+        writers: []
+        denied_decision_rights:
+          - mutate_truth
+          - select_currentness
+          - authorize_transition
+          - resolve_conflict
+          - answer_historical_truth
+      - id: browser.selected_branch_head
+        locator: coherence_demo.web.state.BranchViewState
+        classification: EPHEMERAL
+        identity_bound_to: api.branch_summary.head_version_id
+        writers:
+          - coherence_demo.web.state.BranchViewState.observe
+        denied_decision_rights:
+          - establish_truth
+          - mutate_truth
+          - select_currentness
+          - authorize_transition
+          - resolve_conflict
+          - answer_historical_truth
+
+  run.identity:
+    subject: Run
+    semantic_owner: docs/domain/run.md
+    relevant_lifecycle: admitted
+    canonical_authority:
+      owner: RunAuthority
+      classification: AUTHORITATIVE
+      immutable: true
+      carriers:
+        - sqlite.runs.run_id
+      commit_boundary: coherence_demo.application.execution.ExecutionService.execute
+      allowed_writers:
+        - coherence_demo.persistence.sqlite.RunResultRepository.create_success
+    historical_carrier: self
+    representations: []
+
+  run.bound_version:
+    subject: Run
+    semantic_owner: docs/domain/run.md
+    relevant_lifecycle: admitted
+    canonical_authority:
+      owner: RunAuthority
+      classification: AUTHORITATIVE
+      immutable: true
+      carriers:
+        - sqlite.runs.version_id
+      commit_boundary: coherence_demo.application.execution.ExecutionService.execute
+      allowed_writers:
+        - coherence_demo.persistence.sqlite.RunResultRepository.create_success
+    historical_carrier: self
+    representations:
+      - id: api.run_receipt.version_id
+        locator: coherence_demo.api.projections.run_receipt
+        classification: RECEIPT
+        immutable: true
+        proves:
+          - exact_version_used_by_run
+        writers: []
+        denied_decision_rights:
+          - select_currentness
+          - mutate_version
+          - authorize_branch_transition
+
+  result.exact_outcome:
+    subject: Result
+    semantic_owner: docs/domain/result.md
+    relevant_lifecycle: published
+    canonical_authority:
+      owner: ResultAuthority
+      classification: AUTHORITATIVE
+      immutable: true
+      carriers:
+        - sqlite.results.run_id
+        - sqlite.results.payload_json
+        - sqlite.results.content_hash
+      commit_boundary: coherence_demo.application.execution.ExecutionService.execute
+      allowed_writers:
+        - coherence_demo.persistence.sqlite.RunResultRepository.create_success
+    historical_carrier: self
+    representations:
+      - id: api.result.payload
+        locator: coherence_demo.api.projections.result_projection
+        classification: DERIVED
+        rebuildable_from:
+          - sqlite.results.run_id
+          - sqlite.results.payload_json
+          - sqlite.results.content_hash
+        writers: []
+        denied_decision_rights:
+          - mutate_truth
+          - replace_result
+          - resolve_conflict

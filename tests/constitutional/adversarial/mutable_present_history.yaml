@@ -1,0 +1,10 @@
+name: historical reconstruction from mutable present Branch
+mutation:
+  operation: write
+  path: src/coherence_demo/application/history_reconstruction.py
+  content: |
+    from coherence_demo.persistence.sqlite import BranchRepository
+
+    def branch_head_at_time(repository: BranchRepository, branch_id, when):
+        return repository.get(branch_id).head_version_id
+expected_error: "mutable-present historical dependency"

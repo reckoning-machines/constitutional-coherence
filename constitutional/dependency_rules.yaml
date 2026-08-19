@@ -1,0 +1,21 @@
+forbidden_imports:
+  - from_glob: src/coherence_demo/web/**/*.py
+    modules:
+      - coherence_demo.persistence
+    reason: Browser-facing state may not resolve authority through persistence.
+
+forbidden_client_decision_names:
+  from_glob: src/coherence_demo/web/**/*.py
+  contains:
+    - reconcile_current
+    - select_current
+    - resolve_current
+  reason: Client code may display an owner decision but may not synthesize currentness.
+
+historical_read_boundaries:
+  - from_glob: src/coherence_demo/application/history*.py
+    forbidden_modules:
+      - coherence_demo.persistence.sqlite.BranchRepository
+    required_modules:
+      - coherence_demo.persistence.sqlite.BranchHistoryRepository
+    reason: Historical Branch truth must come from immutable transition receipts.
