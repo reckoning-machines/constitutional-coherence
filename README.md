@@ -10,20 +10,34 @@ where it does not hold.
 
 ## The exposure
 
-Every firm that has run two systems against the same position knows the failure.
-Both books say they are the record. Neither is wrong locally. The discrepancy
-surfaces at the worst moment, and the reconciliation costs more than either
-system did.
+A position sits in two systems: the trading system that produced the fills, and
+the accounting system that produces the firm's official books. Both are meant to
+describe the same holding.
 
-Software acquires the same exposure quietly. A test suite confirms that the
-software does what it is supposed to do. It says nothing about who is entitled
-to decide. An agent adds a reasonable field, the suite passes, and the system
-now holds two answers to a single question: which version is this branch on. Six
-months on, two components disagree, and no one can adjudicate, because both
-positions are defensible.
+A late allocation arrives after the trading system has closed for the day. The
+accounting system takes it. The trading system does not. The two now differ by
+10,000 shares.
 
-The essay calls this duplicate authority. It is the exposure this repository is
-built to test for.
+Neither system is broken. Each is internally consistent, and each can derive its
+number from its own inputs, so neither can be shown to be wrong on its own
+terms. What was never settled is which of the two is entitled to the answer.
+There is therefore no rule that resolves the disagreement. What happens instead
+is a reconciliation: somebody rebuilds both histories by hand and rules on which
+one stands.
+
+The expensive part is rarely the 10,000 shares. It is that the difference tends
+to be found late. At the close, or after a hedge has been sized off the wrong
+figure, or when the question arrives from outside the firm.
+
+Software takes on the same exposure, and takes it on quietly. A test suite
+confirms that the software does what it is supposed to do. It is silent on who
+is entitled to decide. An agent adds a sensible field, every test passes, and
+the system now holds two answers to one question: which version is this branch
+on. Nothing fails. Months later two components disagree, and there is no rule to
+adjudicate, because each position is defensible on its own terms.
+
+The essay calls this duplicate authority. It is the exposure this repository
+tests for.
 
 ## The control
 
