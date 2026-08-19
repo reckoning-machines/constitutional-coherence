@@ -1,6 +1,9 @@
 # Constitutional Coherence: a working reference
 
-A small, runnable implementation of the framework set out in
+I'm a former pm / analyst now builder of institutional research and trading
+systems.  You can reach me at jedgore@reckoningmachines.com
+
+This repo is a small, runnable implementation of the framework set out in
 [An Agentic Coding Proposal: Constitutional Coherence](https://reckoningmachines.substack.com/p/an-agentic-coding-proposal-constitutional).
 
 The essay argues that once code is cheap to produce, the binding constraint is
